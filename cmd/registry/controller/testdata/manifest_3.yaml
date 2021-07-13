@@ -18,4 +18,4 @@ generated_resources:
   dependencies:
   - pattern: $resource.spec/artifacts/lint-gnostic
   - pattern: $resource.spec/artifacts/complexity
-  action: "compute score $source0 $source1" 
+  action: "compute score $dependency0 $dependency1" 

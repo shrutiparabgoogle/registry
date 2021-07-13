@@ -17,4 +17,4 @@ generated_resources:
 - pattern: apis/-/artifacts/vocabulary
   dependencies:
   - pattern: $resource.api/versions/-/specs/-
-  action: "compute vocabulary $source0.api"
+  action: "compute vocabulary $dependency0.api"

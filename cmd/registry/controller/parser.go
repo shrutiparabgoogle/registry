@@ -21,6 +21,9 @@ import (
 	"strings"
 )
 
+const resourceKW = "$resource"
+const dependencyKW = "$dependency"
+
 func ExtendSourcePattern(
 	resourcePattern string,
 	sourcePattern string) (string, error) {
@@ -34,11 +37,11 @@ func ExtendSourcePattern(
 	// sourcePattern: "$resource.api/versions/-"
 	// Returns "apis/-/versions/-"
 
-	if !strings.HasPrefix(sourcePattern, "$resource") {
+	if !strings.HasPrefix(sourcePattern, resourceKW) {
 		return sourcePattern, nil
 	}
 
-	entityRegex := regexp.MustCompile(`\$resource\.(api|version|spec|artifact)`)
+	entityRegex := regexp.MustCompile(fmt.Sprintf(`\%s\.(api|version|spec|artifact)`, resourceKW))
 	matches := entityRegex.FindStringSubmatch(sourcePattern)
 	if len(matches) <= 1 {
 		return "", errors.New(fmt.Sprintf("Invalid source pattern: %s", sourcePattern))
@@ -74,12 +77,12 @@ func ExtractGroup(pattern string, resource Resource) (string, error) {
 	// resource: "projects/demo/apis/petstore/versions/1.0.0/specs/openapi.yaml"
 	// returns "projects/demo/apis/petstore"
 
-	if strings.HasPrefix(pattern, "$resource") {
+	if strings.HasPrefix(pattern, resourceKW) {
 		// Example:
 		// pattern: "$resource.api/versions/-/specs/-"
 		// re.FindStringSubmatch will return:
 		// ["$resource.api", "api"]
-		re := regexp.MustCompile(`\$resource\.(api|version|spec|artifact)`)
+		re := regexp.MustCompile(fmt.Sprintf(`\%s\.(api|version|spec|artifact)`, resourceKW))
 
 		matches := re.FindStringSubmatch(pattern)
 		if len(matches) <= 1 {
@@ -103,25 +106,25 @@ func ExtractGroup(pattern string, resource Resource) (string, error) {
 }
 
 func GenerateCommand(action string, args []Resource) (string, error) {
-	// Check if there is a reference to $source in the action
-	if !strings.Contains(action, "$source") {
+	// Check if there is a reference to $dependency in the action
+	if !strings.Contains(action, dependencyKW) {
 		return action, nil
 	}
 
 	for i, resource := range args {
-		// Extract the $source patterns from action
-		re := regexp.MustCompile(fmt.Sprintf(`.*(\$source%d(\.api|\.version|\.spec|\.artifact)?)`, i))
+		// Extract the $dependency patterns from action
+		re := regexp.MustCompile(fmt.Sprintf(`.*(\%s%d(\.api|\.version|\.spec|\.artifact)?)`, dependencyKW, i))
 		// The above func FindStringSubmatch will always return a slice of size 3
 		// Example:
-		// re.FindStringSubmatch("compute lint $source0") = ["compute lint $source0", "$source0", ""]
-		// re.FindStringSubmatch("compute lint $source0.spec") = ["compute lint $source0.spec", "$source0.spec", ".spec"]
+		// re.FindStringSubmatch("compute lint $dependency0") = ["compute lint $dependency0", "$dependency0", ""]
+		// re.FindStringSubmatch("compute lint $dependency0.spec") = ["compute lint $dependency0.spec", "$dependency0.spec", ".spec"]
 		match := re.FindStringSubmatch(action)
 
 		if len(match) == 3 {
 			entity, entityType := match[1], match[2]
 
 			entityVal := ""
-			if len(entityType) > 0 { // If the reference is present as $source.api
+			if len(entityType) > 0 { // If the reference is present as $dependency.api
 				switch entityType[1:] {
 				case "api":
 					entityVal = resource.GetApi()
@@ -138,7 +141,7 @@ func GenerateCommand(action string, args []Resource) (string, error) {
 				}
 				action = strings.ReplaceAll(action, entity, entityVal)
 
-			} else if len(entity) > 0 { //if only source is present. Eg: $source0
+			} else if len(entity) > 0 { //if only source is present. Eg: $dependency0
 				entityVal := resource.GetName()
 				action = strings.ReplaceAll(action, entity, entityVal)
 			}
